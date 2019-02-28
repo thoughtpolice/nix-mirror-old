@@ -11,7 +11,7 @@ LABEL "com.github.actions.description"="Deploys a secure CloudFlare Worker for N
 LABEL "com.github.actions.icon"="upload-cloud"
 LABEL "com.github.actions.color"="blue"
 
-RUN nix-env -iA nixpkgs.gnutar nixpkgs.gzip nixpkgs.iana-etc nixpkgs.cacert && \
+RUN nix-env -iA nixpkgs.gnutar nixpkgs.gzip nixpkgs.iana-etc nixpkgs.cacert nixpkgs.curl nixpkgs.jq && \
   ln -sfv $(nix-env -q --out-path --no-name iana-etc)/etc/services /etc/services && \
   ln -sfv $(nix-env -q --out-path --no-name iana-etc)/etc/protocols /etc/protocols && \
   ln -sfv $(nix-env -q --out-path --no-name nss-cacert)/etc/ssl /etc/ssl
