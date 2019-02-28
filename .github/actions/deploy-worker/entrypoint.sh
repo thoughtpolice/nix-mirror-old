@@ -60,7 +60,7 @@ workerSuccess=$(echo "$workerInfo" | jq '.success')
 echo "OK!"
 rm -rf "$script" "$metadata" "$metadata.in"
 
-domainRoute="*${CACHE_DOMAIN}/*"
+#domainRoute="*${CACHE_DOMAIN}/*"
 echo -n "Updating/clearing route table... "
 routeInfo=$(curl -s -X GET \
         -H "X-Auth-Email:$CF_EMAIL" -H "X-Auth-Key:$CF_API_KEY" \
