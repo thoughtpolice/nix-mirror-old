@@ -7,7 +7,7 @@
 <!-- Please check what applies. Note that these are not hard requirements but merely serve as information for reviewers. -->
 
 - [ ] Assured whether relevant documentation is up to date
-- [ ] Fits [CONTRIBUTING.md](https://github.com/thoughtpolice/rv32-sail/blob/master/.github/CONTRIBUTING.md).
+- [ ] Fits [CONTRIBUTING.md](https://github.com/thoughtpolice/nix-mirror/blob/master/.github/CONTRIBUTING.md).
 
 ---
 
