@@ -353,11 +353,11 @@ async function landingPage(s3, origRequest) {
 
   if (ping.status === 200) {
     onlineStatus   = "is up"
-    onlineEmoji    = "&#x1F4AF"
+    onlineEmoji    = "&#x1F4AF;"
     failureMessage = ""
   } else {
     onlineStatus   = "is down!"
-    onlineEmoji    = "&#x274C"
+    onlineEmoji    = "&#x274C;"
     failureMessage = `<div class="alert alert-danger" role="alert">
 <p>The backend S3 API reported an HTTP status code of <strong>${ping.status}</strong>, with the following
 body: TODO FIXME</p>
@@ -435,7 +435,7 @@ along with the following information: TODO FIXME</p></div>`
       <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository, and are checked once
       every three hours. The services that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
       infrastructure, and running on completely separate cloud providers, to help avoid
-      <acronym title="Single Points Of Failure">SPOFs</acronym>.
+      <abbr title="Single Points Of Failure">SPOFs</abbr>.
     </p>
     <p>
       The currently supported set of channels mirrored by this service, polled once every three hours:
@@ -457,7 +457,7 @@ along with the following information: TODO FIXME</p></div>`
     <div class="help">
       <p>The source code for this application, including this script and the data pipeline, is available
       <a href="https://github.com/thoughtpolice/nix-mirror">at this URL</a>. You may report issues and
-      bugs <a href="https://github.com/thoughtpolice/nix-mirror/issues">here</a>.
+      bugs <a href="https://github.com/thoughtpolice/nix-mirror/issues">here</a>.</p>
 
       <p>If you are having trouble, please reach out through one of the
       <a href="https://nixos.org/nixos/support.html">support channels</a>
