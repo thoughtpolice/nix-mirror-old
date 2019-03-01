@@ -379,26 +379,18 @@ along with the following information: TODO FIXME</p></div>`
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>${CACHE_DOMAIN} ${onlineStatus}</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="https://nixos.org/bootstrap/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://nixos.org/bootstrap/css/bootstrap-responsive.min.css" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <style>
       body {
         padding-top: 0;
         margin-top:    4em;
         margin-bottom: 4em;
       }
-      body > div {
-        max-width: 800px;
-      }
-      p, h1, pre {
+      p, h1, pre, ul {
         text-align: center;
-      }
-      .cache {
-        font-style: italic;
       }
       </style>
   </head>
@@ -420,9 +412,9 @@ along with the following information: TODO FIXME</p></div>`
 
     <div class="container">
     <p>To use this cache, simply set the following lines in your <code>/etc/nix/nix.conf</code>:
-    <pre>substituters = https://cache.nixos.org https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}</pre></p>
+    <pre><code>substituters = https://cache.nixos.org https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}</code></pre></p>
     <p>Or, set the following lines in your <code>configuration.nix</code>:
-    <pre>nix.binaryCaches = [ "https://cache.nixos.org" "https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}" ]</pre>
+    <pre><code>nix.binaryCaches = [ "https://cache.nixos.org" "https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}" ]</code></pre>
     </p>
 
     <p>(You may also use <code>trusted-substituters</code> instead, which will instead allow
@@ -439,11 +431,18 @@ along with the following information: TODO FIXME</p></div>`
       This service is hosted and served by <a href="https://cloudflare.com">CloudFlare</a>, via
       <a href="https://cloudflareworkers.com">Workers</a>. It is automatically deployed from GitHub as
       a "live" service. The underlying storage backend for the binary objects is durable S3-compatible storage,
-      provided by <a href="https://wasabi.com">Wasabi</a>. Updates to this mirror occur whenever the upstream
-      <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository is updated. The services
-      that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
+      provided by <a href="https://wasabi.com">Wasabi</a>. Updates to this mirror occur upon update the upstream
+      <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository, and are checked once
+      every three hours. The services that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
       infrastructure, and running on completely separate cloud providers, to help avoid
       <acronym title="Single Points Of Failure">SPOFs</acronym>.
+    </p>
+    <p>
+      The currently supported set of channels mirrored by this service, polled once every three hours:
+      <ul class="list-unstyled">
+        <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-19.03-small">nixos-19.03-small</a></li>
+        <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-unstable-small">nixos-unstable-small</a></li>
+      </ul>
     </p>
     <p>
       <b>Cache requests and responses to this service are logged</b>. This information <b>is not</b> shared
@@ -466,7 +465,7 @@ along with the following information: TODO FIXME</p></div>`
       which will help us figure out where the issue lies. You can run this script instantly without permanently
       installing or copying anything:
 
-      <pre>nix run -f https://github.com/thoughtpolice/nix-mirror/archive/master.tar.gz -c diagnose-cache</pre>
+      <code><pre>nix run -f https://github.com/thoughtpolice/nix-mirror/archive/master.tar.gz -c diagnose-cache</pre></code>
       </p>
 
       <p><small><b>Ray ID</b>: ${rayid}<br/>
