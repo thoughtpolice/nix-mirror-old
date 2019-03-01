@@ -38,5 +38,10 @@
       , "type": "secret_text"
       , "text": "@CLICKHOUSE_LOGIN@"
       }
+
+    , { "name": "CLICKHOUSE_DATABASE"
+      , "type": "secret_text"
+      , "text": "@CLICKHOUSE_DATABASE@"
+      }
     ]
 }

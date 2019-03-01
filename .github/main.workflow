@@ -36,5 +36,5 @@ action "Deploy CloudFlare Worker" {
     CACHE_DOMAIN    = "cowsay.pw"
     CACHE_SUBDOMAIN = "cache"
   }
-  secrets = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "CF_EMAIL", "CF_API_KEY"]
+  secrets = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "CF_EMAIL", "CF_API_KEY", "CLICKHOUSE_LOGIN", "CLICKHOUSE_DATABASE"]
 }

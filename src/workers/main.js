@@ -94,7 +94,7 @@ const CACHE_PRIORITY = 30
 // information, to a 3rd party server. If this is enabled, POST requests
 // will be published to a specified LOGGING_ENDPOINT, and analytics dashboards
 // will  (presumably) be available at a specified LOGGING_ANALYTICS URL.
-const LOGGING_ENABLE = false
+const LOGGING_ENABLE = true
 
 // The URL to submit CDN logs to. Logs will be submitted as POST requests
 // containing application/json content-type bodies. It is assumed this is not
@@ -168,6 +168,10 @@ const LOGGING_ANALYTICS = `analytics.${CACHE_DOMAIN}`
 //
 //const CLICKHOUSE_LOGIN = '...'
 
+// The Database that the ClickHouse user will write to.
+//
+//const CLICKHOUSE_DATABASE = '...'
+
 /* -------------------------------------------------------------------------- */
 /* -- No more configuration beyond this point ------------------------------- */
 
@@ -179,8 +183,9 @@ addEventListener('fetch', e => e.respondWith(logAndForwardRequest(e)))
 
 /**
  * Takes a request, forwards it to the top-level handler, while recording
- * the request/response values, and forwarding them to an ingestion service.
- * Logs are pushed in JSON format to the specified API endpoint.
+ * the request/response values, and forwarding them to the underlying
+ * ClickHouse database, via HTTPS. Logs are pushed in JSON format to the
+ * HTTP endpoint using JSONEachRow format.
  * 
  * @param {Event} event The incoming event, including the request
  * @return {Response} The response from the backend service
@@ -194,30 +199,43 @@ async function logAndForwardRequest(event) {
   // hack: just remap non-www root zone requests to the www subdomain
   if (host === CACHE_DOMAIN) subdomain = 'www'
   
-  // bail fast if it's not the cache endpoint
+  // bail fast if it's not the cache endpoint, or logging is disabled
   const response = await handle(request, subdomain)
-  if (DEBUG || !LOGGING_ENABLE || (subdomain !== CACHE_SUBDOMAIN)) return response
+  if (!LOGGING_ENABLE || (subdomain !== CACHE_SUBDOMAIN)) return response
 
-  // otherwise, log
-  const rMeth = request.method
-  const rUrl  = url.pathname
-  const rHost = request.headers.get("host")
-  const cfRay = request.headers.get("cf-ray")
-  const cIP   = request.headers.get("cf-connecting-ip")
-  const statusCode = response.status
-
-  // submit
-  const logEndpoint = `https://${LOGGING_ENDPOINT}/api/logs`
-  const logEntry = `${rMeth},${statusCode},${cIP},${cfRay},${rUrl}`
-  const init = {
+  // build the JSON payload and query insert endpoint
+  const insertComponent = 'query=' + encodeURIComponent('INSERT INTO logs FORMAT JSONEachRow')
+  const logEndpoint     = `https://${LOGGING_ENDPOINT}/?database=${CLICKHOUSE_DATABASE}&${insertComponent}`
+  const logRequest = {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ log_entry: logEntry }),
+    headers: {
+      'Content-Type'  : 'application/json',
+      'Authorization' : 'Basic ' + btoa(CLICKHOUSE_LOGIN)
+    },
+    body: JSON.stringify({
+      method : request.method,
+      url    : url.pathname,
+      host   : request.headers.get("host"),
+      ray    : request.headers.get("cf-ray"),
+      status : response.status,
+    }),
   }
 
-  if (DEBUG) console.log(logEndpoint, init)
+  // execute the log POST, and register the result Promise with the worker event
+  // loop using .waitUntil -- this will allow execution to continue and the 
+  // client response to be returned immediately, while ensuring the worker 
+  // runtime waits until the POST is completed -- otherwise, if the response
+  // returns too quickly, the POST will not complete, losing a log insert
+  let logResponse = fetch(logEndpoint, logRequest)
+  event.waitUntil(logResponse)
+  if (DEBUG) {
+    // in the DEBUG case, await the result too, in order to see the status code
+    let logResult = await logResponse
+    console.log(logEndpoint, logRequest)
+    console.log('Logging endpoint response:', logResult.status)
+  }
 
-  // event.waitUntil(fetch(logEndpoint, init))
+  // finished
   return response
 }
 
@@ -343,6 +361,26 @@ async function invalidPage() {
 }
 
 /**
+ * Check if the ClickHouse server is online, by issuing a SELECT as the
+ * chosen user.
+ *
+ * @return {Response} HTTP response from ClickHouse
+ */
+function checkClickHouse() {
+  // build the JSON payload and query insert endpoint
+  const insertComponent = 'query=' + encodeURIComponent('SELECT 1')
+  const pingEndpoint    = `https://${LOGGING_ENDPOINT}/?database=${CLICKHOUSE_DATABASE}&${insertComponent}`
+  const pingRequest = {
+    method: "GET",
+    headers: {
+      'Content-Type'  : 'application/json',
+      'Authorization' : 'Basic ' + btoa(CLICKHOUSE_LOGIN)
+    },
+  }
+  return fetch(pingEndpoint, pingRequest)
+}
+
+/**
  * Returns a nice and useful support/help landing page, for use as the top
  * level domain/www subdomain route. This makes it clear to users what this
  * service does, and how it does it.
@@ -367,36 +405,39 @@ async function landingPage(s3, origRequest) {
   let fact = facts[Math.floor(Math.random() * facts.length)]
 
   // this ping will hit the '/' URL, to test if the bucket is available
-  let ping = await s3.signedRequest(S3_BUCKET, origRequest)
-  if (DEBUG) console.log('Ping response: ', ping.status)
+  let s3ping = await s3.signedRequest(S3_BUCKET, origRequest)
+  if (DEBUG) console.log('S3 ping response: ', s3ping.status)
+  // and also, check ClickHouse
+  let chping = await checkClickHouse();
+  if (DEBUG) console.log('ClickHouse ping response: ', chping.status)
 
-  if (ping.status === 200) {
-    onlineStatus   = "is up"
-    onlineEmoji    = "&#x1F4AF;"
-    statusMessage = `<div class="alert alert-primary" role="alert">
-<p>Everything responding normally.</p>
-</div>`
-  } else {
-    onlineStatus   = "is down!"
-    onlineEmoji    = "&#x274C;"
-    statusMessage = `<div class="alert alert-danger" role="alert">
-<p>The backend S3 API reported a failing HTTP status code of <strong>${ping.status}</strong>.</p>
-
-<p>Please report this failure to <strong><a href="https://github.com/thoughtpolice/nix-mirror/issues">the bug tracker</a></strong>,
-along with the following information:</p>
-
-<p><small><b>Ray ID</b>: ${rayid}<br/>
-<b>Version of this script</b>: ${workerVersion}<br/>
-<b>Cat fact</b>: ${fact}</small></p>
-</div>`
+  const getStatus = (resp) => {
+    switch (resp.status) {
+      case 200: return [ true,  "<strong>online</strong>",  "&#x1F4AF;" ]
+      default:  return [ false, "<strong>offline</strong>", "&#x274C;"  ]
+    }
   }
 
+  let s3stat = getStatus(s3ping)
+  let chstat = getStatus(chping)
+
+  // do some title/error customization
+  let statusText  = ""
+  let titleText   = "is online"
+  let statusEmoji = "&#x1F4AF;"
+  if (!s3stat[0] || !chstat[0]) {
+    statusText = `<hr class="my-4"><p>This mirror seems to be malfunctioning. Please contact the administrators.</p>`
+    if (!chstat[0]) { titleText = "is malfunctioning"; statusEmoji = "&#x26A0;"; }
+    if (!s3stat[0]) { titleText = "is offline";        statusEmoji = "&#x274C;"; }
+  }
+
+  // finish
   return staticPage(200, "OK", {}, `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>${CACHE_DOMAIN} ${onlineStatus}</title>
+    <title>${CACHE_DOMAIN} ${titleText}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <style>
       body {
@@ -412,15 +453,17 @@ along with the following information:</p>
   <body>
     <div class="container jumbotron">
       <div class="jumbotron">
-        <h1 class="display-4">${CACHE_DOMAIN} ${onlineStatus} ${onlineEmoji}</h1>
+        <h1 class="display-4">${CACHE_DOMAIN} ${titleText} ${statusEmoji}</h1>
 
         <p class="lead">
           This is a mirror of the upstream <a href="https://cache.nixos.org">Nix Binary Cache</a>,
           a service that helps speed up builds for the <a href="https://nixos.org/nix">Nix Package Manager</a>.
         </p>
         <hr class="my-4">
-        <p>Current mirror status:</p>
-        ${statusMessage}
+        <p><strong>Current mirror status</strong>:</p>
+        <p>S3 Backend: ${s3stat[1]} ${s3stat[2]}</p>
+        <p>ClickHouse: ${chstat[1]} ${chstat[2]}</p>
+        ${statusText}
       </div>
     </div>
 
@@ -461,12 +504,12 @@ along with the following information:</p>
         </ul>
       </p>
       <p>
-        <b>Cache requests and responses to this service are logged</b>. This information <b>is not</b> shared
-        with any third-party analytics services other than CloudFlare itself (Google, etc), is stored on self-hosted
-        servers, and is <em>only</em> used to provide information to package maintainers and service operators about
-        package usage, download distribution, and performance metrics of the cache. IP addresses <b>are not logged</b>.
-        To see information about the aggregated analytics collected, as well as further technical details, please visit
-        <a href="https://${LOGGING_ANALYTICS}">https://${LOGGING_ANALYTICS}</a>
+        <b>Cache requests and responses to this service are logged</b>. Other than the first-party analytics information stored
+        by CloudFlare itself, this information <b>is not shared</b> with any third-party analytics services, is stored on
+        self-hosted servers (using <a href="https://clickhouse.yandex">ClickHouse</a>), and is <em>only</em> used to provide
+        information to package maintainers and service operators about package usage, download distribution, and performance
+        metrics of the cache. IP addresses <b>are not logged</b>. To see information about the aggregated analytics collected,
+        as well as further technical details, please visit <a href="https://${LOGGING_ANALYTICS}">https://${LOGGING_ANALYTICS}</a>
       </p>
 
       <hr/>

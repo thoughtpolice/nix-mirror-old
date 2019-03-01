@@ -17,6 +17,7 @@ check_var "S3_BUCKET"
 check_var "CACHE_DOMAIN"
 check_var "CACHE_SUBDOMAIN"
 check_var "CLICKHOUSE_LOGIN"
+check_var "CLICKHOUSE_DATABASE"
 
 check_var "CF_EMAIL"
 check_var "S3_ACCESS_KEY"
@@ -48,7 +49,8 @@ nix-shell --pure -p stdenv \
   --keep "S3_ACCESS_KEY" \
   --keep "S3_SECRET_KEY" \
   --keep "CLICKHOUSE_LOGIN" \
-  --run "substitute '$metadata.in' '$metadata' --subst-var S3_API_ENDPOINT --subst-var S3_BUCKET --subst-var CACHE_DOMAIN --subst-var CACHE_SUBDOMAIN --subst-var S3_ACCESS_KEY --subst-var S3_SECRET_KEY --subst-var CLICKHOUSE_LOGIN"
+  --keep "CLICKHOUSE_DATABASE" \
+  --run "substitute '$metadata.in' '$metadata' --subst-var S3_API_ENDPOINT --subst-var S3_BUCKET --subst-var CACHE_DOMAIN --subst-var CACHE_SUBDOMAIN --subst-var S3_ACCESS_KEY --subst-var S3_SECRET_KEY --subst-var CLICKHOUSE_LOGIN --subst-var CLICKHOUSE_DATABASE"
 echo "OK!"
 
 echo -n "Uploading Binary Cache CloudFlare worker... "
