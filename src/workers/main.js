@@ -159,6 +159,15 @@ const LOGGING_ANALYTICS = `analytics.${CACHE_DOMAIN}`
 //
 //const S3_SECRET_KEY = '...'
 
+// The HTTP Authentication parameters for POSTing data to ClickHouse. The
+// specified credentials MUST be specified in the form 'user:password', which
+// is the underlying format used by HTTP Basic Authentication.
+//
+// The ClickHouse user specified MUST have write permissions so that data
+// can be inserted into the specified tables.
+//
+//const CLICKHOUSE_LOGIN = '...'
+
 /* -------------------------------------------------------------------------- */
 /* -- No more configuration beyond this point ------------------------------- */
 

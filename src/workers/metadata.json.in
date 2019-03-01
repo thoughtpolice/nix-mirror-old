@@ -33,5 +33,10 @@
       , "usages": [ "sign" ]
       , "algorithm": { "name": "HMAC", "hash": { "name": "SHA-1" } }
       }
+
+    , { "name": "CLICKHOUSE_LOGIN"
+      , "type": "secret_text"
+      , "text": "@CLICKHOUSE_LOGIN@"
+      }
     ]
 }
