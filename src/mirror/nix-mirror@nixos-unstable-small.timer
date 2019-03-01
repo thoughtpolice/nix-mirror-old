@@ -1,0 +1,9 @@
+[Unit]
+Description=Mirror nixos-unstable-small once every eight hours
+
+[Timer]
+OnCalendar=0/8:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

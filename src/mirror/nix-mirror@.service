@@ -1,0 +1,36 @@
+[Unit]
+Description=Nix Mirror Service
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+
+; User and group
+User=nix-mirror
+Group=nix-mirror
+
+; Restart and execution
+EnvironmentFile=/etc/nix-mirror/creds.sh
+ExecStart=/usr/local/bin/nix-mirror "%i"
+ExecReload=/bin/kill -SIGHUP $MAINPID
+
+; Reasonable timeout and shutdown time
+KillSignal=SIGINT
+TimeoutStopSec=30s
+
+; Reasonable startup interval limits
+StartLimitInterval=60s
+StartLimitBurst=3
+
+; Track/account IP usage
+IPAccounting=yes
+
+; Secure and lock down all write access to the system, essentially
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
