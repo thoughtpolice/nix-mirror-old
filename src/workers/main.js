@@ -342,31 +342,13 @@ async function invalidPage() {
  * @return {Response} 200 HTML response
  */
 async function landingPage(s3, origRequest) {
+  let workerVersion = "@GIT_VERSION@"
+
   let origHeaders = origRequest.headers
   let rayid = origHeaders.get('cf-ray')
   let cfip  = origHeaders.get('cf-connecting-ip')
   let cfcnt = origHeaders.get('cf-ipcountry')
 
-  // this ping will hit the '/' URL, to test if the bucket is available
-  let ping = await s3.signedRequest(S3_BUCKET, origRequest)
-  if (DEBUG) console.log('Ping response: ', ping.status)
-
-  if (ping.status === 200) {
-    onlineStatus   = "is up"
-    onlineEmoji    = "&#x1F4AF;"
-    failureMessage = ""
-  } else {
-    onlineStatus   = "is down!"
-    onlineEmoji    = "&#x274C;"
-    failureMessage = `<div class="alert alert-danger" role="alert">
-<p>The backend S3 API reported an HTTP status code of <strong>${ping.status}</strong>, with the following
-body: TODO FIXME</p>
-
-<p>Please report this failure to <strong><a href="https://github.com/thoughtpolice/nix-mirror/issues">the bug tracker</a></strong>,
-along with the following information: TODO FIXME</p></div>`
-  }
-
-  let workerVersion = "@GIT_VERSION@"
   let facts =
     [ "Cats have worse STA than Dragons, but higher INT."
     , "Cats are traditionally classified as non-solid objects."
@@ -375,8 +357,32 @@ along with the following information: TODO FIXME</p></div>`
     ]
   let fact = facts[Math.floor(Math.random() * facts.length)]
 
-  return staticPage(200, "OK", {}, `
-<!DOCTYPE html>
+  // this ping will hit the '/' URL, to test if the bucket is available
+  let ping = await s3.signedRequest(S3_BUCKET, origRequest)
+  if (DEBUG) console.log('Ping response: ', ping.status)
+
+  if (ping.status === 200) {
+    onlineStatus   = "is up"
+    onlineEmoji    = "&#x1F4AF;"
+    statusMessage = `<div class="alert alert-primary" role="alert">
+<p>Everything responding normally.</p>
+</div>`
+  } else {
+    onlineStatus   = "is down!"
+    onlineEmoji    = "&#x274C;"
+    statusMessage = `<div class="alert alert-danger" role="alert">
+<p>The backend S3 API reported a failing HTTP status code of <strong>${ping.status}</strong>.</p>
+
+<p>Please report this failure to <strong><a href="https://github.com/thoughtpolice/nix-mirror/issues">the bug tracker</a></strong>,
+along with the following information:</p>
+
+<p><small><b>Ray ID</b>: ${rayid}<br/>
+<b>Version of this script</b>: ${workerVersion}<br/>
+<b>Cat fact</b>: ${fact}</small></p>
+</div>`
+  }
+
+  return staticPage(200, "OK", {}, `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -385,7 +391,7 @@ along with the following information: TODO FIXME</p></div>`
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <style>
       body {
-        padding-top: 0;
+        padding-top:   0;
         margin-top:    4em;
         margin-bottom: 4em;
       }
@@ -397,82 +403,83 @@ along with the following information: TODO FIXME</p></div>`
   <body>
     <div class="container jumbotron">
       <div class="jumbotron">
-        <p class="lead">
-          <h1>${CACHE_DOMAIN} ${onlineStatus} ${onlineEmoji}</h1>
-        </p>
-
-        ${failureMessage}
+        <h1 class="display-4">${CACHE_DOMAIN} ${onlineStatus} ${onlineEmoji}</h1>
 
         <p class="lead">
           This is a mirror of the upstream <a href="https://cache.nixos.org">Nix Binary Cache</a>,
           a service that helps speed up builds for the <a href="https://nixos.org/nix">Nix Package Manager</a>.
         </p>
+        <hr class="my-4">
+        <p>Current mirror status:</p>
+        ${statusMessage}
       </div>
     </div>
 
     <div class="container">
-    <p>To use this cache, simply set the following lines in your <code>/etc/nix/nix.conf</code>:
-    <pre><code>substituters = https://cache.nixos.org https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}</code></pre></p>
-    <p>Or, set the following lines in your <code>configuration.nix</code>:
-    <pre><code>nix.binaryCaches = [ "https://cache.nixos.org" "https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}" ]</code></pre>
-    </p>
-
-    <p>(You may also use <code>trusted-substituters</code> instead, which will instead allow
-    system users to opt-in to this cache on a per-build basis, rather than globally use it
-    at all times.)</p>  
-
-    <p>There is no need to include a separate signing key. As this is only a mirror,
-    upstream NAR files are used, and are already signed with the <code>cache.nixos.org</code>
-    private key (so you do not need to trust the operators of this mirror).</p>
-
-    <hr/>
-
-    <p>
-      This service is hosted and served by <a href="https://cloudflare.com">CloudFlare</a>, via
-      <a href="https://cloudflareworkers.com">Workers</a>. It is automatically deployed from GitHub as
-      a "live" service. The underlying storage backend for the binary objects is durable S3-compatible storage,
-      provided by <a href="https://wasabi.com">Wasabi</a>. Updates to this mirror occur upon update the upstream
-      <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository, and are checked once
-      every three hours. The services that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
-      infrastructure, and running on completely separate cloud providers, to help avoid
-      <abbr title="Single Points Of Failure">SPOFs</abbr>.
-    </p>
-    <p>
-      The currently supported set of channels mirrored by this service, polled once every three hours:
-      <ul class="list-unstyled">
-        <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-19.03-small">nixos-19.03-small</a></li>
-        <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-unstable-small">nixos-unstable-small</a></li>
-      </ul>
-    </p>
-    <p>
-      <b>Cache requests and responses to this service are logged</b>. This information <b>is not</b> shared
-      with any third-party analytics services other than CloudFlare itself (Google, etc), is stored on self-hosted
-      servers, and is <em>only</em> used to provide information to package maintainers and service operators about
-      package usage, download distribution, and performance metrics of the cache. IP addresses <b>are not logged</b>.
-      To see information about the aggregated analytics collected, as well as further technical details, please visit
-      <a href="https://${LOGGING_ANALYTICS}">https://${LOGGING_ANALYTICS}</a>
-    </p>
-
-    <hr/>
-    <div class="help">
-      <p>The source code for this application, including this script and the data pipeline, is available
-      <a href="https://github.com/thoughtpolice/nix-mirror">at this URL</a>. You may report issues and
-      bugs <a href="https://github.com/thoughtpolice/nix-mirror/issues">here</a>.</p>
-
-      <p>If you are having trouble, please reach out through one of the
-      <a href="https://nixos.org/nixos/support.html">support channels</a>
-      with the results of the included <a href="https://github.com/thoughtpolice/nix-mirror/tree/master/src/diagnostics">diagnostics script</a>
-      which will help us figure out where the issue lies. You can run this script instantly without permanently
-      installing or copying anything:
-
-      <code><pre>nix run -f https://github.com/thoughtpolice/nix-mirror/archive/master.tar.gz -c diagnose-cache</pre></code>
+      <p>To use this cache, simply set the following lines in your <code>/etc/nix/nix.conf</code>:
+        <pre><code>substituters = https://cache.nixos.org https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}</code></pre>
       </p>
 
-      <p><small><b>Ray ID</b>: ${rayid}<br/>
-      <b>Visitor IP</b>: ${cfip} (${cfcnt})<br/>
-      <b>Version of this script</b>: ${workerVersion}<br/>
-      <b>Cat fact</b>: ${fact}</small></p>
-    </div>
+      <p>Or, set the following lines in your <code>configuration.nix</code>:
+        <pre><code>nix.binaryCaches = [ "https://cache.nixos.org" "https://${CACHE_SUBDOMAIN}.${CACHE_DOMAIN}" ]</code></pre>
+      </p>
+
+      <p>(You may also use <code>trusted-substituters</code> instead, which will instead allow
+      system users to opt-in to this cache on a per-build basis, rather than globally use it
+      at all times.)</p>
+
+      <p>There is no need to include a separate signing key. As this is only a mirror,
+      upstream NAR files are used, and are already signed with the <code>cache.nixos.org</code>
+      private key (so you do not need to trust the operators of this mirror).</p>
+
+      <hr/>
+
+      <p>
+        This service is hosted and served by <a href="https://cloudflare.com">CloudFlare</a>, via
+        <a href="https://cloudflareworkers.com">Workers</a>. It is automatically deployed from GitHub as
+        a "live" service. The underlying storage backend for the binary objects is durable S3-compatible storage,
+        provided by <a href="https://wasabi.com">Wasabi</a>. Updates to this mirror occur upon update the upstream
+        <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository, and are checked once
+        every three hours. The services that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
+        infrastructure, and running on completely separate cloud providers, to help avoid
+        <abbr title="Single Points Of Failure">SPOFs</abbr>.
+      </p>
+      <p>
+        The currently supported set of channels mirrored by this service, polled once every three hours:
+        <ul class="list-unstyled">
+          <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-19.03-small">nixos-19.03-small</a></li>
+          <li><a href="https://github.com/NixOS/nixpkgs-channels/tree/nixos-unstable-small">nixos-unstable-small</a></li>
+        </ul>
+      </p>
+      <p>
+        <b>Cache requests and responses to this service are logged</b>. This information <b>is not</b> shared
+        with any third-party analytics services other than CloudFlare itself (Google, etc), is stored on self-hosted
+        servers, and is <em>only</em> used to provide information to package maintainers and service operators about
+        package usage, download distribution, and performance metrics of the cache. IP addresses <b>are not logged</b>.
+        To see information about the aggregated analytics collected, as well as further technical details, please visit
+        <a href="https://${LOGGING_ANALYTICS}">https://${LOGGING_ANALYTICS}</a>
+      </p>
+
+      <hr/>
+      <div class="help">
+        <p>The source code for this application, including this script and the data pipeline, is available
+        <a href="https://github.com/thoughtpolice/nix-mirror">at this URL</a>. You may report issues and
+        bugs <a href="https://github.com/thoughtpolice/nix-mirror/issues">here</a>.</p>
+
+        <p>If you are having trouble, please reach out through one of the
+        <a href="https://nixos.org/nixos/support.html">support channels</a>
+        with the results of the included <a href="https://github.com/thoughtpolice/nix-mirror/tree/master/src/diagnostics">diagnostics script</a>
+        which will help us figure out where the issue lies. You can run this script instantly without permanently
+        installing or copying anything:
+
+          <pre><code>nix run -f https://github.com/thoughtpolice/nix-mirror/archive/master.tar.gz -c diagnose-cache</code></pre>
+        </p>
+
+        <p><small><b>Ray ID</b>: ${rayid}<br/>
+        <b>Visitor IP</b>: ${cfip} (${cfcnt})<br/>
+        <b>Version of this script</b>: ${workerVersion}<br/>
+        <b>Cat fact</b>: ${fact}</small></p>
+      </div>
     </div>
   </body>
 </html>
