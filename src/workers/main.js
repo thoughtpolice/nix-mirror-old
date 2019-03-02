@@ -551,6 +551,20 @@ async function landingPage(s3, origRequest) {
 `);
 }
 
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Return the analytics page
+ *
+ * @param {Request} r
+ * @return {Response}
+ */
+async function analyticsPage(r) {
+  return staticPage(200, "OK", {}, "Hello World");
+}
+
+/* -------------------------------------------------------------------------- */
+
 /**
  * Handle all incoming requests, and route any requests for the cache
  * subdomain to the S3 API endpoint.
@@ -563,6 +577,7 @@ async function handle(r, subdomain) {
   let s3 = new S3(S3_API_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)
   switch (subdomain) {
     case 'www'           : return landingPage(s3, r)
+    case 'analytics'     : return analyticsPage(r)
     case CACHE_SUBDOMAIN : return s3.signedRequest(S3_BUCKET, r)
     default              : return invalidPage()
   }
