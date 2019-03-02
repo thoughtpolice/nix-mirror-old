@@ -426,9 +426,22 @@ async function landingPage(s3, origRequest) {
   let titleText   = "is online"
   let statusEmoji = "&#x1F4AF;"
   if (!s3stat[0] || !chstat[0]) {
-    statusText = `<hr class="my-4"><p>This mirror seems to be malfunctioning. Please contact the administrators.</p>`
-    if (!chstat[0]) { titleText = "is malfunctioning"; statusEmoji = "&#x26A0;"; }
-    if (!s3stat[0]) { titleText = "is offline";        statusEmoji = "&#x274C;"; }
+    statusText = `<hr class="my-4"><p>This mirror seems to be malfunctioning. Please contact the administrators.</p><hr class="myr-4"><p>`
+    if (!chstat[0]) {
+      titleText = "is malfunctioning"
+      statusEmoji = "&#x26A0;"
+      statusText += `ClickHouse Status Info: ${chping.status} (${chping.statusText})<br/>`
+    }
+    if (!s3stat[0]) {
+      titleText = "is offline"
+      statusEmoji = "&#x274C"
+      statusText += `Minio Status Info: ${s3ping.status} (${s3ping.statusText})<br/>`
+    }
+
+    statusText += `<b>Ray ID</b>: ${rayid}<br/>
+      <b>Worker Version</b>: ${workerVersion}<br/>
+      </p>
+    `
   }
 
   // finish
@@ -529,7 +542,7 @@ async function landingPage(s3, origRequest) {
 
         <p><small><b>Ray ID</b>: ${rayid}<br/>
         <b>Visitor IP</b>: ${cfip} (${cfcnt})<br/>
-        <b>Version of this script</b>: ${workerVersion}<br/>
+        <b>Version</b>: ${workerVersion}<br/>
         <b>Cat fact</b>: ${fact}</small></p>
       </div>
     </div>
