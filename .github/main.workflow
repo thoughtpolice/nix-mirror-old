@@ -31,8 +31,8 @@ action "Deploy CloudFlare Worker" {
   uses = "./.github/actions/deploy-worker"
   needs = ["Publish Filter"]
   env = {
-    S3_API_ENDPOINT = "s3.wasabisys.com"
-    S3_BUCKET       = "aseipp-nix-cache-mirror"
+    S3_API_ENDPOINT = "s3.cowsay.pw"
+    S3_BUCKET       = "nix-cache"
     CACHE_DOMAIN    = "cowsay.pw"
     CACHE_SUBDOMAIN = "cache"
   }

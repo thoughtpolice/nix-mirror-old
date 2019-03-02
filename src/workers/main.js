@@ -490,7 +490,7 @@ async function landingPage(s3, origRequest) {
         This service is hosted and served by <a href="https://cloudflare.com">CloudFlare</a>, via
         <a href="https://cloudflareworkers.com">Workers</a>. It is automatically deployed from GitHub as
         a "live" service. The underlying storage backend for the binary objects is durable S3-compatible storage,
-        provided by <a href="https://wasabi.com">Wasabi</a>. Updates to this mirror occur upon update the upstream
+        provided by <a href="https://minio.io">Minio</a>. Updates to this mirror occur upon update the upstream
         <a href="https://github.com/nixos/nixpkgs-channels">nixpkgs-channels</a> repository, and are checked once
         every three hours. The services that support this mirror are completely independent of all upstream <a href="https://nixos.org">https://nixos.org</a>
         infrastructure, and running on completely separate cloud providers, to help avoid
